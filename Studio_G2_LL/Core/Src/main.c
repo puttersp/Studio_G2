@@ -120,10 +120,6 @@ static void MX_I2C1_Init(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	HAL_StatusTypeDef ret;
-	uint8_t buf[12];
-	int16_t val;
-	float temp_c;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
