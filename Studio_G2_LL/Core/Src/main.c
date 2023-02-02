@@ -154,44 +154,6 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  // Tell TMP102 that we want to read from the temperature register
-	  buf[0] = REG_TEMP;
-	  ret = HAL_I2C_Master_Transmit(&hi2c1, TMP102_ADDR, buf, 1, HAL_MAX_DELAY);
-	  if ( ret != HAL_OK ) {
-		strcpy((char*)buf, "Error Tx\r\n");
-	  } else {
-
-		// Read 2 bytes from the temperature register
-		ret = HAL_I2C_Master_Receive(&hi2c1, TMP102_ADDR, buf, 2, HAL_MAX_DELAY);
-		if ( ret != HAL_OK ) {
-		  strcpy((char*)buf, "Error Rx\r\n");
-		} else {
-
-		  //Combine the bytes
-		  val = ((int16_t)buf[0] << 4) | (buf[1] >> 4);
-
-		  // Convert to 2's complement, since temperature can be negative
-		  if ( val > 0x7FF ) {
-			val |= 0xF000;
-		  }
-
-		  // Convert to float temperature value (Celsius)
-		  temp_c = val * 0.0625;
-
-		  // Convert temperature to decimal format
-		  temp_c *= 100;
-		  sprintf((char*)buf,
-				"%u.%u C\r\n",
-				((unsigned int)temp_c / 100),
-				((unsigned int)temp_c % 100));
-		}
-	  }
-
-	  // Send out buffer (temperature or error message)
-	  HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
-
-	  // Wait
-	  HAL_Delay(500);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
