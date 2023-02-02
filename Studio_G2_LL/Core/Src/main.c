@@ -45,8 +45,58 @@ I2C_HandleTypeDef hi2c1;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-static const uint8_t TMP102_ADDR = 0x48 << 1; // Use 8-bit address
-static const uint8_t REG_TEMP = 0x00;
+static const uint8_t LASER_ADDR_W = 0x23 << 1;
+static const uint8_t LASER_ADDR_R = (0x23 << 1) | 0x01;
+static const uint8_t LASER_ON_REG = 0x45;
+static const uint8_t LASER_READ_REG = 0x23;
+uint8_t buf[12];
+
+void laser_on(){
+	HAL_StatusTypeDef status_;
+	uint8_t buf[12];
+
+	status_ = HAL_I2C_Master_Transmit(&hi2c1, LASER_ADDR_W, buf, 1, 10);
+	if ( status_ != HAL_OK ) {
+		strcpy((char*)buf, "Error Tx\r\n");
+	}
+	else {
+		status_ = HAL_I2C_Master_Transmit(&hi2c1, LASER_ON_REG, buf, 1, 10);
+		if ( status_ != HAL_OK ) {
+			strcpy((char*)buf, "Error Rx\r\n");
+		}
+	}
+}
+
+uint8_t laser_state_read(){
+	HAL_StatusTypeDef status_;
+	uint8_t buf[12];
+
+	status_ = HAL_I2C_Master_Transmit(&hi2c1, LASER_ADDR_W, buf, 1, 10);
+	if ( status_ != HAL_OK ) {
+		strcpy((char*)buf, "Error Tx\r\n");
+	}
+	else {
+		status_ = HAL_I2C_Master_Transmit(&hi2c1, LASER_READ_REG, buf, 1, 10);
+		if ( status_ != HAL_OK ) {
+			strcpy((char*)buf, "Error Rx\r\n");
+		}
+	}
+
+	status_ = HAL_I2C_Master_Transmit(&hi2c1, LASER_ADDR_R, buf, 1, 10);
+	if ( status_ != HAL_OK ) {
+		strcpy((char*)buf, "Error Tx\r\n");
+	}
+	else {
+		status_ = HAL_I2C_Master_Receive(&hi2c1, LASER_READ_REG, buf, 1, 10);
+		if ( status_ != HAL_OK ) {
+			strcpy((char*)buf, "Error Rx\r\n");
+		}
+	}
+	return buf;
+
+}
+
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
