@@ -63,6 +63,8 @@ static int frmode = 0;			//Manual joystick mode = {Fine, Rough}
 static uint32_t counter = 0;	//for encoder reading process
 static int16_t count = 0;		//count value from encoder
 
+int joy_a,joy_b,joy_dir;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -133,6 +135,16 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	  //Input Management
+	  joy_a = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_8);
+	  joy_b = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_9);
+
+	  if		(joy_a == 1 && joy_b == 1)	{joy_dir = 0;}
+	  else if	(joy_a == 1 && joy_b == 0)	{joy_dir = 1;}
+	  else if	(joy_a == 0 && joy_b == 1)	{joy_dir = 2;}		// CHECK FOR JOYSTICK DIRECTION
+	  else if	(joy_a == 0 && joy_b == 0)	{joy_dir = 3;}
+
+
 	  switch(mode){
 	  case 0 : // manual
 		  switch(frmode){
@@ -149,7 +161,16 @@ int main(void)
 			  }
 			  break;
 		  case 1 : // fine
-
+			  switch(joy_dir){
+			  case 0 : // W
+				  break;
+			  case 1 : // A
+				  break;
+			  case 2 : // S
+				  break;
+			  case 3 : // D
+				  break;
+			  }
 			  break;
 		  }
 		  break;
@@ -353,6 +374,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PA8 PA9 */
+  GPIO_InitStruct.Pin = GPIO_PIN_8|GPIO_PIN_9;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
 }
 
