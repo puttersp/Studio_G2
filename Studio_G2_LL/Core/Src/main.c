@@ -42,60 +42,26 @@
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
 
+TIM_HandleTypeDef htim2;
+
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-static const uint8_t LASER_ADDR_W = 0x23 << 1;
-static const uint8_t LASER_ADDR_R = (0x23 << 1) | 0x01;
-static const uint8_t LASER_ON_REG = 0x45;
-static const uint8_t LASER_READ_REG = 0x23;
-uint8_t buf[12];
 
-void laser_on(){
-	HAL_StatusTypeDef status_;
-	uint8_t buf[12];
+//LASER ADDRESSES & REGISTERS
+const uint8_t LASER_ADDR_W = 0x23 << 1;
+const uint8_t LASER_ADDR_R = (0x23 << 1) | 0x01;
+const uint8_t LASER_ON_REG = 0x45;
+const uint8_t LASER_READ_REG = 0x23;
 
-	status_ = HAL_I2C_Master_Transmit(&hi2c1, LASER_ADDR_W, buf, 1, 10);
-	if ( status_ != HAL_OK ) {
-		strcpy((char*)buf, "Error Tx\r\n");
-	}
-	else {
-		status_ = HAL_I2C_Master_Transmit(&hi2c1, LASER_ON_REG, buf, 1, 10);
-		if ( status_ != HAL_OK ) {
-			strcpy((char*)buf, "Error Rx\r\n");
-		}
-	}
-}
+uint16_t buf[12];				//bufferforcommswithLASER
+uint16_t ee_state_buf[10];		//bufferforLASERstatus
 
-uint8_t laser_state_read(){
-	HAL_StatusTypeDef status_;
-	uint8_t buf[12];
+static int mode = 0;			//mode = {Manual, Automatic}
+static int frmode = 0;			//Manual joystick mode = {Fine, Rough}
 
-	status_ = HAL_I2C_Master_Transmit(&hi2c1, LASER_ADDR_W, buf, 1, 10);
-	if ( status_ != HAL_OK ) {
-		strcpy((char*)buf, "Error Tx\r\n");
-	}
-	else {
-		status_ = HAL_I2C_Master_Transmit(&hi2c1, LASER_READ_REG, buf, 1, 10);
-		if ( status_ != HAL_OK ) {
-			strcpy((char*)buf, "Error Rx\r\n");
-		}
-	}
-
-	status_ = HAL_I2C_Master_Transmit(&hi2c1, LASER_ADDR_R, buf, 1, 10);
-	if ( status_ != HAL_OK ) {
-		strcpy((char*)buf, "Error Tx\r\n");
-	}
-	else {
-		status_ = HAL_I2C_Master_Receive(&hi2c1, LASER_READ_REG, buf, 1, 10);
-		if ( status_ != HAL_OK ) {
-			strcpy((char*)buf, "Error Rx\r\n");
-		}
-	}
-	return buf;
-
-}
-
+static uint32_t counter = 0;	//for encoder reading process
+static int16_t count = 0;		//count value from encoder
 
 /* USER CODE END PV */
 
@@ -104,7 +70,18 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_I2C1_Init(void);
+static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
+void laser_on(); //70%
+void laser_state_read(); //70%
+
+void drive_y();
+
+void write_gp_x(int x_pos);
+void write_feedback();
+void read_enc();
+void enc_2_spd();
+void spd_2_acl();
 
 /* USER CODE END PFP */
 
@@ -142,7 +119,10 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_I2C1_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
+
+  HAL_TIM_Encoder_Start_IT(&htim2, TIM_CHANNEL_ALL);
 
   /* USER CODE END 2 */
 
@@ -153,6 +133,30 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	  switch(mode){
+	  case 0 : // manual
+		  switch(frmode){
+		  case 0 : // rough
+			  switch(joy_dir){
+			  case 0 : // W
+				  break;
+			  case 1 : // A
+				  break;
+			  case 2 : // S
+				  break;
+			  case 3 : // D
+				  break;
+			  }
+			  break;
+		  case 1 : // fine
+
+			  break;
+		  }
+		  break;
+	  case 1 : // Auto
+
+		  break;
+	  }
   }
   /* USER CODE END 3 */
 }
@@ -238,6 +242,55 @@ static void MX_I2C1_Init(void)
 }
 
 /**
+  * @brief TIM2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM2_Init(void)
+{
+
+  /* USER CODE BEGIN TIM2_Init 0 */
+
+  /* USER CODE END TIM2_Init 0 */
+
+  TIM_Encoder_InitTypeDef sConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM2_Init 1 */
+
+  /* USER CODE END TIM2_Init 1 */
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 0;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 65535;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+  sConfig.EncoderMode = TIM_ENCODERMODE_TI12;
+  sConfig.IC1Polarity = TIM_ICPOLARITY_RISING;
+  sConfig.IC1Selection = TIM_ICSELECTION_DIRECTTI;
+  sConfig.IC1Prescaler = TIM_ICPSC_DIV1;
+  sConfig.IC1Filter = 10;
+  sConfig.IC2Polarity = TIM_ICPOLARITY_RISING;
+  sConfig.IC2Selection = TIM_ICSELECTION_DIRECTTI;
+  sConfig.IC2Prescaler = TIM_ICPSC_DIV1;
+  sConfig.IC2Filter = 0;
+  if (HAL_TIM_Encoder_Init(&htim2, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM2_Init 2 */
+
+  /* USER CODE END TIM2_Init 2 */
+
+}
+
+/**
   * @brief USART2 Initialization Function
   * @param None
   * @retval None
@@ -304,6 +357,36 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+void laser_on(){
+	HAL_StatusTypeDef status_;
+	buf[0] = LASER_ON_REG;
+	status_ = HAL_I2C_Master_Transmit(&hi2c1, LASER_ADDR_W, buf, 1, 10);
+	if ( status_ != HAL_OK ) {
+		strcpy((char*)buf, "Error Tx\r\n");
+	}
+}
+
+void laser_state_read(){
+	HAL_StatusTypeDef status_;
+	buf[0] = LASER_READ_REG;
+	status_ = HAL_I2C_Master_Transmit(&hi2c1, LASER_ADDR_W, buf, 1, 10);
+	if ( status_ != HAL_OK ) {
+		strcpy((char*)buf, "Error Tx\r\n");
+	}
+	else {
+		status_ = HAL_I2C_Master_Receive(&hi2c1, LASER_ADDR_R, ee_state_buf, 1, 10);
+		if ( status_ != HAL_OK ) {
+			strcpy((char*)buf, "Error Rx\r\n");
+		}
+	}
+}
+
+void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
+{
+	counter = __HAL_TIM_GET_COUNTER(htim);
+	count = (int16_t)counter;
+}
 
 /* USER CODE END 4 */
 
